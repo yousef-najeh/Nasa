@@ -50,7 +50,17 @@
       <label class="chk"><input id="relief" type="checkbox" checked />
         Polar relief overlay</label>
       <label class="chk"><input id="showSites" type="checkbox" checked />
-        Candidate sites</label>
+        Top sites</label>
+      <label class="chk"><input id="showPoints" type="checkbox" checked />
+        All screened points <b id="ptCount"></b></label>
+
+      <div class="sep"></div>
+      <div class="layerpick">
+        <button class="lay is-on" data-layer="sun" type="button">Sun</button>
+        <button class="lay" data-layer="earth" type="button">Earth</button>
+        <button class="lay" data-layer="night" type="button">Night</button>
+      </div>
+      <div id="legend" class="legend-ramp"></div>
 
       <div class="sep"></div>
       <details id="help">

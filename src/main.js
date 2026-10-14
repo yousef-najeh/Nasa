@@ -6,6 +6,7 @@ import { setupNavigation } from "./navigation.js";
 import { loadSites, addSiteMarkers, drawHorizon } from "./sites.js";
 import { CRITERIA, PRESETS, ranges, score } from "./scoring.js";
 import { SkyBodies, loadEarthTexture } from "./bodies.js";
+import { loadPoints, ScoredPoints, LAYERS } from "./points.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
@@ -301,6 +302,43 @@ async function main() {
 
   await loadEarthTexture();
   const bodies = new SkyBodies(viewer, sky);
+
+  // --- the whole screening grid as a scored map ----------------------------
+  setBoot("LOADING SCREENED POINTS", 1);
+  const pts = await loadPoints();
+  const cloud = new ScoredPoints(viewer, pts);
+  el("ptCount").textContent = pts.meta.count.toLocaleString();
+
+  const drawLegend = () => {
+    const stops = cloud.legend();
+    const L = LAYERS[cloud.layer];
+    el("legend").innerHTML =
+      `<div class="swatches">${stops.map((s) =>
+        `<i style="background:${s.color.toCssHexString()}"></i>`).join("")}</div>
+       <div class="ticks"><span>${stops[0].value.toFixed(0)}${L.unit}</span>
+         <span>${L.label}</span>
+         <span>${stops[4].value.toFixed(0)}${L.unit}</span></div>`;
+  };
+  for (const b of document.querySelectorAll(".lay")) {
+    b.addEventListener("click", () => {
+      for (const o of document.querySelectorAll(".lay")) o.classList.remove("is-on");
+      b.classList.add("is-on");
+      cloud.setLayer(b.dataset.layer);
+      drawLegend();
+    });
+  }
+  el("showPoints").addEventListener("change", (e) => {
+    cloud.show = e.target.checked;
+    el("legend").style.display = e.target.checked ? "" : "none";
+  });
+  // thin the dots out when zoomed far in so terrain stays readable
+  scene.postRender.addEventListener(() => {
+    const h = Cesium.Ellipsoid.MOON.cartesianToCartographic(viewer.camera.position)?.height;
+    if (!Number.isFinite(h)) return;
+    const want = h > 600_000 ? 3 : h > 150_000 ? 5 : h > 40_000 ? 7 : 9;
+    if (want !== cloud._px) { cloud._px = want; cloud.setPixelSize(want); }
+  });
+  drawLegend();
   const markers = addSiteMarkers(viewer, doc.sites, showSite);
 
   // --- time scrubber: watch the Sun circle this site's horizon -------------

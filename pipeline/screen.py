@@ -314,3 +314,29 @@ def export_full(fine, order, rec_coarse, top=24, n_az=360, step_hours=3.0,
     print(f"wrote {path} ({len(sites)} sites, {len(psr)} PSR points, "
           f"{path.stat().st_size/1e6:.1f} MB)")
     return doc
+
+
+def export_points(rec, path=None):
+    """Every screened candidate as a compact binary for the viewer.
+
+    JSON would be ~6 MB of digits for this; a flat Float32 buffer is a third of
+    that and needs no parsing. Field order is fixed and mirrored in the loader.
+    """
+    path = Path(path or OUT / "screen_points.bin")
+    fields = ["lat", "lon", "elev", "sun_pct", "earth_pct", "night_h",
+              "blackout_h", "horizon_mean"]
+    buf = np.empty((len(rec), len(fields)), dtype="<f4")
+    for i, f in enumerate(fields):
+        buf[:, i] = rec[f]
+    path.write_bytes(buf.tobytes())
+
+    meta = {
+        "count": int(len(rec)), "fields": fields,
+        "spacingM": 1000, "radiusM": 100000, "start": START,
+        "ranges": {f: [float(rec[f].min()), float(rec[f].max())] for f in fields},
+        "psrCount": int((rec["sun_pct"] <= 0.05).sum()),
+    }
+    (path.with_suffix(".json")).write_text(json.dumps(meta, indent=1))
+    print(f"wrote {path.name} ({len(rec)} points, "
+          f"{path.stat().st_size/1e6:.1f} MB) + {path.with_suffix('.json').name}")
+    return meta

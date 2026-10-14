@@ -147,3 +147,15 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# --- project specific ---
+.venv/
+__pycache__/
+*.pyc
+
+# Raw LOLA rasters (~2 GB) -- fetch from PDS, see README
+data/lola/
+
+# Generated browser assets (DEM + texture, ~175 MB) -- rebuild with
+# pipeline/prepare_terrain.py
+public/data/

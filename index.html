@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lunar South Pole Site Finder</title>
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+
+    <header id="topbar">
+      <span class="brand">LUNAR SOUTH POLE <b>SITE FINDER</b></span>
+      <span class="tag" id="srcTag">loading…</span>
+    </header>
+
+    <div id="hud">
+      <div class="row"><span>LAT</span><b id="hLat">—</b></div>
+      <div class="row"><span>LON</span><b id="hLon">—</b></div>
+      <div class="row"><span>ELEV</span><b id="hElev">—</b></div>
+      <div class="row"><span>CAM ALT</span><b id="hAlt">—</b></div>
+
+      <div class="sep"></div>
+      <label class="ctl">
+        VERTICAL EXAGGERATION <b id="vexVal">1.6×</b>
+        <input id="vex" type="range" min="1" max="6" step="0.2" value="1.6" />
+      </label>
+
+      <div class="sep"></div>
+      <div class="btns">
+        <button id="btnHome" type="button">Polar view</button>
+        <button id="btnOblique" type="button">Oblique</button>
+      </div>
+
+      <div class="sep"></div>
+      <div class="note">
+        <b>Topography</b> — LOLA (LRO), 2009–2017, NASA PDS.<br />
+        <b>Lighting</b> — rendered: Sun at 12° elevation, 45° azimuth, with
+        cast shadows and Lommel-Seeliger regolith reflectance.
+        Real Sun geometry from SPICE comes in Phase&nbsp;B.<br />
+        <b>Colour</b> — neutral regolith grey. LOLA carries no albedo; no
+        photographic imagery is used.
+      </div>
+    </div>
+
+    <div id="boot">
+      <div class="bootInner">
+        <div id="bootMsg">LOADING</div>
+        <div class="bootTrack"><div id="bootBar"></div></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

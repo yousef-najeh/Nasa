@@ -173,6 +173,56 @@ room full of space-themed projects.
 
 ---
 
+## 5b. Scope extension — mission tool
+
+Six additions, in dependency order. Three of them hang off an API layer, so
+that comes first.
+
+### API layer (the spine)
+
+Three endpoints, layered so measurement stays separate from judgement:
+
+| Endpoint | Takes | Returns |
+|---|---|---|
+| `GET /api/v1/site` | coordinate + timeframe | what *is* true there — illumination, comms, terrain, horizon, volatiles |
+| `POST /api/v1/assess` | that report + mission constraints | suitable or not, with the failing checks named |
+| `POST /api/v1/plan` | a mission (timeframe, profile, limits) | ranked locations **and** usable windows |
+
+`/site` takes no view on whether conditions are good; `/assess` applies a
+mission's limits; `/plan` runs both across the region. The same numbers then
+serve a planner, an educator and a student without being quietly
+re-interpreted per audience.
+
+**What makes `/plan` answerable in a request:** horizon profiles are
+time-independent — terrain does not move. Cached once for all 31,417 screened
+points, a new timeframe becomes arithmetic over a Sun/Earth track instead of
+31,417 fresh ray-marches. That is a 200-second batch job turned into a query.
+
+### Viewer changes
+
+- **Orbit-locked camera.** Rotate and zoom only, no free flight. Sun, Earth and
+  a star field stay fixed in their true directions relative to the viewing
+  coordinate.
+- **CLPS missions layer.** Real landing sites placed correctly, clickable into
+  a surface view set to that mission's actual date and location, with floating
+  panels for time, elevation, lighting, comms status and briefing.
+  *Coordinates must come from published sources and be marked approximate
+  until verified — see the data-honesty rule above.*
+- **Mission builder.** Enter mission parameters, get highlighted candidate
+  regions back from `/plan`.
+- **Click-or-type a coordinate** plus a timeframe, get the `/site` report.
+- **Role-based interface** — mission planner, educator, student. Same numbers,
+  different depth and framing.
+
+### Order
+
+1. Horizon cache + API (unblocks 3 of the 6)
+2. Coordinate lookup in the viewer against `/site`
+3. Orbit-locked camera + stars
+4. CLPS layer + surface view
+5. Mission builder against `/plan`
+6. Role-based interface
+
 ## 6. Phases
 
 | Phase | Output | Status |

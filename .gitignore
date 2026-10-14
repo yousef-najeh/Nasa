@@ -161,3 +161,4 @@ data/lola/
 public/data/
 data/kernels/
 *.npy
+data/horizon_cache.npz

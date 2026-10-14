@@ -1,5 +1,6 @@
 import * as Cesium from "cesium";
 import { SUN_COLOR, EARTH_COLOR } from "./sites.js";
+import { loadEarthTexture, drawEarth, drawSun } from "./render_bodies.js";
 
 /**
  * Sun and Earth drawn in the sky over the selected site.
@@ -16,7 +17,15 @@ import { SUN_COLOR, EARTH_COLOR } from "./sites.js";
  */
 
 const SKY_DIST = 70_000;      // m from the site -- display only
+// True angular radii are 0.27 deg (Sun) and ~0.95 deg (Earth). At those sizes
+// both are a handful of pixels, so they are magnified for visibility. The
+// factor is shown in the UI; direction and phase stay exact.
+const MAGNIFY = 9;
+const SUN_ANG_DEG = 0.271;
+const EARTH_ANG_DEG = 0.95;
 const MOON = Cesium.Ellipsoid.MOON;
+
+export { loadEarthTexture };
 
 export class SkyBodies {
   constructor(viewer, sky) {
@@ -25,14 +34,22 @@ export class SkyBodies {
     this.index = 0;
     this.site = null;
 
-    const mk = (name, color, size) => viewer.entities.add({
+    this.sunCanvas = drawSun(document.createElement("canvas"));
+    this.earthCanvas = document.createElement("canvas");
+    this._lastDrawn = -1;
+
+    const sizeFor = (angDeg) =>
+      2 * SKY_DIST * Math.tan(Cesium.Math.toRadians(angDeg)) * MAGNIFY;
+
+    const mk = (name, color, angDeg) => viewer.entities.add({
       show: false,
       position: new Cesium.CallbackProperty(() => this._pos(name), false),
-      point: {
-        pixelSize: size,
-        color: Cesium.Color.fromCssColorString(color),
-        outlineColor: Cesium.Color.fromCssColorString("#0b0c0e"),
-        outlineWidth: 2,
+      billboard: {
+        image: new Cesium.CallbackProperty(
+          () => (name === "sun" ? this.sunCanvas : this.earthCanvas), false),
+        sizeInMeters: true,
+        width: sizeFor(angDeg) * (name === "sun" ? 3.2 : 1.0),  // corona
+        height: sizeFor(angDeg) * (name === "sun" ? 3.2 : 1.0),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
@@ -42,26 +59,37 @@ export class SkyBodies {
         showBackground: true,
         backgroundColor: Cesium.Color.fromCssColorString("#0b0c0eD8"),
         backgroundPadding: new Cesium.Cartesian2(5, 3),
-        pixelOffset: new Cesium.Cartesian2(0, -16),
+        pixelOffset: new Cesium.Cartesian2(0, -26),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
-      // sight line from the site, so the bearing is unmistakable
+      // Sight line back to the landing site, so the bearing is anchored to the
+      // point being evaluated. Hidden once the camera is essentially at the
+      // site, where the line is end-on and reads as a meaningless vertical.
       polyline: {
         positions: new Cesium.CallbackProperty(() => {
+          if (!this.site || this._cameraAtSite()) return [];
           const p = this._pos(name);
-          return p && this.site ? [this._sitePos(), p] : [];
+          return p ? [this._sitePos(), p] : [];
         }, false),
         width: 1.5,
         material: new Cesium.PolylineDashMaterialProperty({
-          color: Cesium.Color.fromCssColorString(color).withAlpha(0.55),
-          dashLength: 12,
+          color: Cesium.Color.fromCssColorString(color).withAlpha(0.6),
+          dashLength: 14,
         }),
         arcType: Cesium.ArcType.NONE,
       },
     });
 
-    this.sun = mk("sun", SUN_COLOR, 15);
-    this.earth = mk("earth", EARTH_COLOR, 12);
+    this.sun = mk("sun", SUN_COLOR, SUN_ANG_DEG);
+    this.earth = mk("earth", EARTH_COLOR, EARTH_ANG_DEG);
+  }
+
+  /** True when the camera is close enough that the sight line degenerates. */
+  _cameraAtSite() {
+    if (!this.site) return false;
+    const d = Cesium.Cartesian3.distance(
+      this.viewer.camera.position, this._sitePos());
+    return d < SKY_DIST * 0.12;
   }
 
   _sitePos() {
@@ -110,12 +138,24 @@ export class SkyBodies {
 
   setSite(site) {
     this.site = site;
+    this._lastDrawn = -1;
+    this._redrawEarth();
     this.sun.show = !!site;
     this.earth.show = !!site;
   }
 
   setIndex(i) {
     this.index = Math.max(0, Math.min(i, this.sky.sunDir.length - 1));
+    this._redrawEarth();
+  }
+
+  _redrawEarth() {
+    if (this._lastDrawn === this.index) return;
+    this._lastDrawn = this.index;
+    const sky = this.sky;
+    if (!sky.earthRot) return;
+    drawEarth(this.earthCanvas, sky.earthDir[this.index],
+      sky.sunDir[this.index], sky.earthRot[this.index]);
   }
 
   get epoch() {

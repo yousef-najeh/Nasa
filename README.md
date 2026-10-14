@@ -206,8 +206,16 @@ parallax is a few degrees for the Sun and ~0.26 deg for Earth, while the Sun
 spends the entire year within 1.5 deg of the horizon and Earth sits roughly on
 it. Centre-referenced placement would put both in visibly the wrong place.
 
-Range is compressed so both stay on screen at site zoom -- direction is exact,
-distance is not, and neither is drawn to physical scale.
+Both are drawn as real discs. Earth uses the NaturalEarthII imagery Cesium
+already ships, sampled per pixel through the **Earth-fixed to MOON_ME rotation
+from SPICE**, so the face actually turned toward the Moon is the one shown --
+and the terminator comes from the real Sun direction, giving the true phase.
+Earth phases run opposite to the Moon's as seen from Earth, so a permanently
+full Earth would be wrong in a way anyone checking would catch.
+
+Range is compressed and both are magnified 9x to stay visible at site zoom
+(the Sun really subtends 0.5 deg, Earth 1.9 deg). Direction and phase are
+exact; size and distance are not, and the UI says so.
 
 "Look at Sun" / "Look at Earth" drop the camera to the site and face the body's
 bearing. Without that both are off-screen: they are on the horizon, and the

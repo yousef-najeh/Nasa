@@ -224,6 +224,15 @@ def _unit_rows(v):
     return [[round(float(a), 6) for a in row] for row in u]
 
 
+def _rot_rows(ets):
+    import spiceypy as spice
+    out = []
+    for e in ets:
+        m = spice.pxform("IAU_EARTH", "MOON_ME", e)
+        out.append([round(float(v), 5) for row in m for v in row])
+    return out
+
+
 def spice_utc(et):
     import spiceypy as spice
     return spice.et2utc(et, "ISOC", 0)
@@ -294,6 +303,9 @@ def export_full(fine, order, rec_coarse, top=24, n_az=360, step_hours=3.0,
             "sunDistKm": [int(v) for v in np.linalg.norm(pos["sun"], axis=1)],
             "earthDistKm": [int(v) for v in np.linalg.norm(pos["earth"], axis=1)],
             "epochs": [spice_utc(e) for e in pos["ets"]],
+            # Earth-fixed -> MOON_ME rotation, so the viewer can show the face
+            # actually turned toward the Moon rather than a generic sphere.
+            "earthRot": _rot_rows(pos["ets"]),
         },
         "sites": sites,
     }

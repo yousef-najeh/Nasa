@@ -5,7 +5,7 @@ import { loadDem, loadGlobalDem, Terrain } from "./lola.js";
 import { setupNavigation } from "./navigation.js";
 import { loadSites, addSiteMarkers, drawHorizon } from "./sites.js";
 import { CRITERIA, PRESETS, ranges, score } from "./scoring.js";
-import { SkyBodies } from "./bodies.js";
+import { SkyBodies, loadEarthTexture } from "./bodies.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
@@ -295,6 +295,7 @@ async function main() {
     });
   };
 
+  await loadEarthTexture();
   const bodies = new SkyBodies(viewer, sky);
   const markers = addSiteMarkers(viewer, doc.sites, showSite);
 

@@ -249,8 +249,14 @@ body { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
   font: 9px var(--mono); color: var(--dim);
 }
 
-/* The control panel outgrew the viewport once scoring and layers were added. */
-#hud { max-height: calc(100vh - 68px); overflow-y: auto; overscroll-behavior: contain; }
+/* The control panel outgrew the viewport once scoring and layers were added.
+   Its height is capped so it stops clear of the ranked list pinned below it --
+   at calc(100vh - 68px) the two panels overlapped and the list sat on top of
+   the sliders. */
+#hud {
+  max-height: calc(100vh - 52px - 32vh);
+  overflow-y: auto; overscroll-behavior: contain;
+}
 #hud::-webkit-scrollbar { width: 8px; }
 #hud::-webkit-scrollbar-thumb { background: #2a2e36; border-radius: 4px; }
-#ranking { max-height: 26vh; }
+#ranking { max-height: 28vh; }

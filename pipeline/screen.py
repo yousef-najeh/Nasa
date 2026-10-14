@@ -217,3 +217,70 @@ if __name__ == "__main__":
     np.save(ROOT / "data/screen_fine.npy", fine)
     fo = report(fine, n=15)
     export_detail(fine, fo)
+
+
+def export_full(fine, order, rec_coarse, top=24, n_az=360, step_hours=3.0,
+                days=365.25):
+    """Export all six criteria per site, plus one shared sky track."""
+    import terrain_metrics as tm
+
+    arr, meta = lola.open_dem(ROOT / f"data/lola/{DEM}.img",
+                              ROOT / f"data/labels/{DEM}.lbl")
+    meta["width"] = arr.shape[0]
+    fine_arr, fine_meta = lola.open_dem(ROOT / "data/lola/ldem_80s_20m.img",
+                                        ROOT / "data/labels/ldem_80s_20m.lbl")
+    psr = tm.psr_points(rec_coarse)
+
+    pos = hz.body_positions(START, days, step_hours)
+    sun = hz._azel_from(pos["sun"], -89.5, 0.0, hz.ephem.SUN_RADIUS_KM,
+                        hz.ephem.MOON_R * 1000.0)
+    earth = hz._azel_from(pos["earth"], -89.5, 0.0, hz.ephem.EARTH_RADIUS_KM,
+                          hz.ephem.MOON_R * 1000.0)
+
+    sites, seen = [], []
+    for i in order:
+        s = fine[i]
+        if any(abs(s["lat"] - a) < 0.004 and abs(s["lon"] - b) < 0.05
+               for a, b in seen):
+            continue
+        seen.append((float(s["lat"]), float(s["lon"])))
+
+        h, z0 = hz.horizon_profile(arr, meta, s["lat"], s["lon"], n_az=n_az)
+        m = tm.slope_roughness(fine_arr, fine_meta, s["lat"], s["lon"])
+        d_psr, plat, plon = tm.nearest_psr_km(s["lat"], s["lon"], psr)
+
+        sites.append({
+            "id": len(sites) + 1,
+            "lat": round(float(s["lat"]), 5), "lon": round(float(s["lon"]), 4),
+            "elev": round(float(z0), 1),
+            "sunPct": round(float(s["sun_pct"]), 2),
+            "earthPct": round(float(s["earth_pct"]), 2),
+            "nightH": round(float(s["night_h"]), 1),
+            "blackoutH": round(float(s["blackout_h"]), 1),
+            "slopeDeg": round(m["slope_deg"], 2) if m else None,
+            "slopeMaxDeg": round(m["slope_max_deg"], 2) if m else None,
+            "roughnessM": round(m["roughness_m"], 2) if m else None,
+            "psrKm": round(d_psr, 2),
+            "psrLat": round(plat, 4), "psrLon": round(plon, 3),
+            "horizon": [round(float(v), 3) for v in h],
+        })
+        if len(sites) >= top:
+            break
+
+    doc = {
+        "start": START, "days": days, "stepHours": step_hours, "nAz": n_az,
+        "slopeBaselineM": 20.0, "slopeBoxM": 200.0,
+        "psrSpacingM": 1000.0, "psrCount": int(len(psr)),
+        "sky": {
+            "sunAz": [round(float(v), 2) for v in sun[0]],
+            "sunEl": [round(float(v), 3) for v in sun[1]],
+            "earthAz": [round(float(v), 2) for v in earth[0]],
+            "earthEl": [round(float(v), 3) for v in earth[1]],
+        },
+        "sites": sites,
+    }
+    path = OUT / "sites.json"
+    path.write_text(json.dumps(doc))
+    print(f"wrote {path} ({len(sites)} sites, {len(psr)} PSR points, "
+          f"{path.stat().st_size/1e6:.1f} MB)")
+    return doc

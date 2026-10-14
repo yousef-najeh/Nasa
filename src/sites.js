@@ -21,18 +21,18 @@ export async function loadSites(base = "/data") {
 
 export function addSiteMarkers(viewer, sites, onSelect) {
   const entities = sites.map((s) => viewer.entities.add({
-    id: `site-${s.rank}`,
+    id: `site-${s.id}`,
     position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, s.elev + 400,
       Cesium.Ellipsoid.MOON),
     point: {
-      pixelSize: s.rank <= 3 ? 11 : 8,
+      pixelSize: 8,
       color: Cesium.Color.fromCssColorString("#e8eaed"),
       outlineColor: Cesium.Color.fromCssColorString("#0b0c0e"),
       outlineWidth: 2,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
     label: {
-      text: String(s.rank),
+      text: String(s.id),
       font: "600 11px ui-monospace, Menlo, Consolas, monospace",
       fillColor: Cesium.Color.fromCssColorString("#e8eaed"),
       showBackground: true,

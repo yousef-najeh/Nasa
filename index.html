@@ -26,6 +26,22 @@
       </label>
 
       <div class="sep"></div>
+      <div class="presets">
+        <button class="preset" data-preset="crewed" type="button">Crewed</button>
+        <button class="preset is-on" data-preset="balanced" type="button">Balanced</button>
+        <button class="preset" data-preset="robotic" type="button">Robotic</button>
+      </div>
+      <div id="weights"></div>
+
+      <div class="sep"></div>
+      <div class="limits">
+        <label>Max slope <b id="limSlopeVal">15°</b>
+          <input id="limSlope" type="range" min="5" max="30" step="1" value="15" /></label>
+        <label>Max night <b id="limNightVal">400 h</b>
+          <input id="limNight" type="range" min="50" max="900" step="25" value="400" /></label>
+      </div>
+
+      <div class="sep"></div>
       <div class="btns">
         <button id="btnGlobe" type="button">Full Moon</button>
         <button id="btnHome" type="button">Pole</button>
@@ -66,6 +82,11 @@
     </div>
 
 
+    <section id="ranking">
+      <header><span>RANKED SITES</span><b id="rankCount">—</b></header>
+      <ol id="rankList"></ol>
+    </section>
+
     <aside id="sitePanel" class="hidden">
       <header>
         <span class="rank" id="spRank">—</span>
@@ -87,10 +108,15 @@
       </div>
 
       <dl class="facts">
+        <dt>Score</dt><dd id="spScore">—</dd>
         <dt>Longest night</dt><dd id="spNight">—</dd>
         <dt>Longest blackout</dt><dd id="spBlack">—</dd>
+        <dt>Slope (mean / max)</dt><dd id="spSlope">—</dd>
+        <dt>Roughness</dt><dd id="spRough">—</dd>
+        <dt>Nearest shadow</dt><dd id="spPsr">—</dd>
         <dt>Elevation</dt><dd id="spElev">—</dd>
       </dl>
+      <div id="spExcl" class="excl hidden"></div>
 
       <figure>
         <figcaption>Sky over this site &mdash; one year from 2027-01-01</figcaption>

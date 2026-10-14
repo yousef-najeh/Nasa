@@ -170,6 +170,30 @@ radius, then 60 m boxes around the best seeds. The refinement matters -- the
 coarse pass peaked at 74.2% solar exposure and the fine pass found 87.9%,
 because the optima are ridge crests tens of metres wide.
 
+## Scoring
+
+All six criteria now compute. `src/scoring.js` normalises each across the
+candidate set and combines them by weight **in the browser**, so the ranking
+re-sorts while a slider is being dragged.
+
+Hard limits (max slope, max night) *exclude* rather than penalise: a site that
+cannot be landed on is not a low-scoring site, it is not a site. Excluded ones
+stay visible with the reason attached, instead of vanishing.
+
+Slope and roughness come from the 20 m polar DEM (`pipeline/terrain_metrics.py`):
+worst slope within a 200 m box at a 20 m baseline, and RMS relief after
+removing the regional plane. 20 m is a screening gate, not a touchdown
+certification -- that needs the LOLA+NAC DTMs at 1-2 m.
+
+PSRs are derived from our own illumination run rather than imported: a
+permanently shadowed point is simply one the Sun never reaches, which the
+coarse screen already determines. 6106 of 31,417 points (19.4%) qualify.
+
+Why criterion 4 mattered: the most illuminated site found (87.9% sun) has a
+19.4 deg worst slope. Under balanced weights with a 15 deg gate it is excluded
+outright, and the top site becomes an 80.5% one with a 11.1 deg worst slope
+and permanent shadow 0.6 km away. Illumination optimum is not landing optimum.
+
 ## Next
 
 Phase B — the horizon/illumination engine. See the plan: compute a 360-azimuth

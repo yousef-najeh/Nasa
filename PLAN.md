@@ -8,7 +8,8 @@ out-build it, and we should not try. Moon Trek *shows* you the Moon; this
 *ranks* it. The globe is the delivery vehicle — the decision layer is the
 product. If asked "isn't this Moon Trek?", the answer is one sentence.
 
-Status: **Phase B landed.** Real Sun and Earth geometry from NASA SPICE drives
+Status: **Phases A-D done.** All six criteria compute; weights are live sliders
+and hard limits gate the list. **Phase B landed.** Real Sun and Earth geometry from NASA SPICE drives
 per-site power and comms exposure, validated against known physics. 31,417
 candidates screened and refined; the best site reaches 87.9% solar exposure.
 The globe renders the whole Moon in Cesium with no ion dependency.
@@ -22,12 +23,12 @@ survivors are combined into a weighted score.
 
 | # | Criterion | Metric | Type |
 |---|---|---|---|
-| 1 | Solar power | % illumination over the mission window | maximize |
-| 2 | Survivability | longest continuous darkness (hours) | hard limit — sizes the battery |
-| 3 | Comms | % Earth visibility, longest blackout | maximize |
-| 4 | Landing safety | slope over 5 / 15 / 50 m baselines | hard mask, typically <= 10 deg |
-| 5 | Roughness | detrended RMS, rock abundance | maximize smoothness |
-| 6 | Science / ISRU | distance and traverse slope to nearest PSR cold trap | minimize |
+| 1 | Solar power | % illumination over the mission window | **done** |
+| 2 | Survivability | longest continuous darkness (hours) | **done** — hard limit |
+| 3 | Comms | % Earth visibility, longest blackout | **done** |
+| 4 | Landing safety | worst slope within 200 m, 20 m baseline | **done** — hard mask |
+| 5 | Roughness | RMS relief after removing regional slope | **done** |
+| 6 | Science / ISRU | distance to nearest permanently shadowed ground | **done** |
 
 The weights are **exposed as sliders in the app** and the score recomputes live
 in the browser from the precomputed criterion layers. That is the feature that
@@ -47,7 +48,7 @@ and comms hard; *Robotic / ISRU* weights PSR proximity and ice.
 | Terrain, site | LOLA polar GDR 20 m | PDS Geosciences | **in use** — supersampled detail |
 | Terrain, finalists | LOLA+NAC co-registered DTM 1-2 m | PGDA | todo |
 | Illumination truth | PGDA illumination / Earth-visibility maps | PGDA | todo — **validation only** |
-| PSR polygons | LOLA-derived PSR shapefiles | LROC / PDS | todo |
+| PSR polygons | derived from our own illumination run | — | **done** — 6106 points |
 | Temperature | Diviner bolometric max / average | PDS Geosciences | todo |
 | Albedo / imagery | LROC WAC mosaic; NAC for sites | LROC | **ruled out as a polar base layer** |
 | Inside the PSRs | ShadowCam (KPLO) | PDS | todo — hero asset |
@@ -179,7 +180,7 @@ room full of space-themed projects.
 | A | Data fetch, projection, terrain rendering in Cesium | **done** |
 | B | Horizon + illumination engine; SPICE Sun/Earth | **done** (PGDA cross-check outstanding) |
 | C | Tier-1 regional run, scored map, shortlist | **done** — coarse + fine screen |
-| D | Cesium globe with layers + live slider scoring | |
+| D | Cesium globe with layers + live slider scoring | **done** |
 | E | Tier-2/3 sites, ground view, timeline scrubber | |
 | F | ShadowCam / NAC imagery, lander context, validation write-up | |
 

@@ -4,6 +4,7 @@ import "./style.css";
 import { loadDem, loadGlobalDem, Terrain } from "./lola.js";
 import { setupNavigation } from "./navigation.js";
 import { loadSites, addSiteMarkers, drawHorizon } from "./sites.js";
+import { CRITERIA, PRESETS, ranges, score } from "./scoring.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
@@ -193,9 +194,68 @@ async function main() {
   const doc = await loadSites();
   const sky = doc.sky;
   const panel = el("sitePanel");
+  const rng = ranges(doc.sites);
+
+  const weights = { ...PRESETS.balanced };
+  const limits = { maxSlope: 15, maxNight: 400 };
+  let ranked = [];
   let current = null;
 
-  const showSite = (s) => {
+  // weight sliders
+  el("weights").innerHTML = CRITERIA.map((c) => `
+    <div class="wrow" title="${c.hint}">
+      <div class="lab"><span>${c.label}</span><b id="w-${c.key}-v"></b></div>
+      <input id="w-${c.key}" type="range" min="0" max="1" step="0.05">
+    </div>`).join("");
+
+  const syncWeights = () => {
+    for (const c of CRITERIA) {
+      el(`w-${c.key}`).value = String(weights[c.key]);
+      el(`w-${c.key}-v`).textContent = weights[c.key].toFixed(2);
+    }
+  };
+
+  const renderList = () => {
+    const ok = ranked.filter((s) => !s.excluded).length;
+    el("rankCount").textContent = `${ok}/${ranked.length}`;
+    el("rankList").innerHTML = ranked.map((s) => `
+      <li data-id="${s.id}" class="${s.excluded ? "is-out" : ""}${
+        current && current.id === s.id ? " is-sel" : ""}"
+          title="${s.excluded ? s.reasons.join("; ") : `score ${s.score.toFixed(1)}`}">
+        <span class="n">${s.rank}</span>
+        <span class="co">${Math.abs(s.lat).toFixed(2)}°S ${s.lon.toFixed(1)}°E</span>
+        <span class="sc">${s.excluded ? "✕" : s.score.toFixed(0)}</span>
+      </li>`).join("");
+    for (const li of el("rankList").querySelectorAll("li")) {
+      li.addEventListener("click", () => {
+        const site = ranked.find((x) => x.id === Number(li.dataset.id));
+        if (site) showSite(site);
+      });
+    }
+  };
+
+  const rescore = () => {
+    ranked = score(doc.sites, weights, limits, rng);
+    for (const m of markers || []) {
+      const s = ranked.find((x) => x.id === m.siteData.id);
+      if (!s) continue;
+      m.label.text = String(s.rank);
+      const dim = s.excluded;
+      m.point.color = Cesium.Color.fromCssColorString(dim ? "#8a6a6a" : "#e8eaed");
+      m.point.pixelSize = dim ? 6 : (s.rank <= 3 ? 11 : 8);
+      m.label.fillColor = Cesium.Color.fromCssColorString(dim ? "#e66767" : "#e8eaed");
+    }
+    renderList();
+    if (current) {
+      const updated = ranked.find((x) => x.id === current.id);
+      if (updated) showSite(updated, false);
+    }
+  };
+
+  const showSite = (site, fly = true) => {
+    // Markers carry the raw site; score and rank live on the ranked copy, so
+    // always resolve through it or the panel reads undefined.
+    const s = ranked.find((x) => x.id === site.id) || site;
     current = s;
     el("spRank").textContent = `#${s.rank}`;
     el("spCoord").textContent =
@@ -207,8 +267,21 @@ async function main() {
     el("spNight").textContent = `${s.nightH.toFixed(0)} h`;
     el("spBlack").textContent = `${s.blackoutH.toFixed(0)} h`;
     el("spElev").textContent = `${s.elev.toFixed(0)} m`;
+    el("spSlope").textContent = s.slopeMaxDeg == null ? "—"
+      : `${s.slopeDeg.toFixed(1)}° / ${s.slopeMaxDeg.toFixed(1)}° max`;
+    el("spRough").textContent = s.roughnessM == null ? "—"
+      : `${s.roughnessM.toFixed(1)} m`;
+    el("spPsr").textContent = `${s.psrKm.toFixed(1)} km`;
+    el("spScore").textContent = s.excluded ? "excluded" : s.score.toFixed(1);
+
+    const ex = el("spExcl");
+    ex.classList.toggle("hidden", !s.excluded);
+    if (s.excluded) ex.textContent = `Fails hard limit — ${s.reasons.join("; ")}`;
+
     panel.classList.remove("hidden");
     drawHorizon(el("spSky"), s, sky);
+    renderList();
+    if (!fly) return;
     nav.settle();
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 26_000,
@@ -220,9 +293,39 @@ async function main() {
   };
 
   const markers = addSiteMarkers(viewer, doc.sites, showSite);
+
+  for (const c of CRITERIA) {
+    el(`w-${c.key}`).addEventListener("input", (e) => {
+      weights[c.key] = Number(e.target.value);
+      el(`w-${c.key}-v`).textContent = weights[c.key].toFixed(2);
+      for (const b of document.querySelectorAll(".preset")) b.classList.remove("is-on");
+      rescore();
+    });
+  }
+  for (const b of document.querySelectorAll(".preset")) {
+    b.addEventListener("click", () => {
+      Object.assign(weights, PRESETS[b.dataset.preset]);
+      for (const o of document.querySelectorAll(".preset")) o.classList.remove("is-on");
+      b.classList.add("is-on");
+      syncWeights();
+      rescore();
+    });
+  }
+  el("limSlope").addEventListener("input", (e) => {
+    limits.maxSlope = Number(e.target.value);
+    el("limSlopeVal").textContent = `${limits.maxSlope}°`;
+    rescore();
+  });
+  el("limNight").addEventListener("input", (e) => {
+    limits.maxNight = Number(e.target.value);
+    el("limNightVal").textContent = `${limits.maxNight} h`;
+    rescore();
+  });
+
   el("spClose").addEventListener("click", () => panel.classList.add("hidden"));
   el("showSites").addEventListener("change", (e) => {
     for (const m of markers) m.show = e.target.checked;
+    el("ranking").style.display = e.target.checked ? "" : "none";
     if (!e.target.checked) panel.classList.add("hidden");
   });
   window.addEventListener("resize", () => {
@@ -230,6 +333,9 @@ async function main() {
       drawHorizon(el("spSky"), current, sky);
     }
   });
+
+  syncWeights();
+  rescore();
 
   boot.classList.add("gone");
   setTimeout(() => boot.remove(), 650);
@@ -239,7 +345,7 @@ async function main() {
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
   }, 900);
 
-  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav, doc, showSite });
+  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav, doc, showSite, rescore });
 }
 
 main().catch((err) => {

@@ -8,8 +8,9 @@ out-build it, and we should not try. Moon Trek *shows* you the Moon; this
 *ranks* it. The globe is the delivery vehicle — the decision layer is the
 product. If asked "isn't this Moon Trek?", the answer is one sentence.
 
-Status: **Phase A complete.** Real LOLA terrain renders in Cesium with cast
-shadows and no Cesium ion dependency. No scoring yet.
+Status: **Phase A complete.** The whole Moon renders in Cesium -- LROC WAC
+imagery over global LOLA shape, with the 120 m polar DEM and our own relief
+render taking over toward the pole. No Cesium ion dependency. No scoring yet.
 
 ---
 

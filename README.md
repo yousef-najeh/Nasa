@@ -87,6 +87,23 @@ would be the source if we want it.
 including the `d^2/2R` curvature drop-off, so it is already on the critical
 path rather than being decoration.
 
+## The globe
+
+The viewer opens on the whole Moon, not a polar disc. Three sources stack:
+
+- **Global shape** from the LOLA `ldem_16` simple-cylindrical DEM (5760x2880,
+  16 ppd), so the sphere has real topography everywhere.
+- **Base imagery** from the LROC WAC global mosaic, served by NASA Moon Trek.
+  Its tiling matches a Cesium `GeographicTilingScheme` exactly (2x1 at level 0,
+  256 px tiles, origin -180/90), so it maps straight across with no
+  reprojection. CORS is open.
+- **Polar relief overlay** -- our render -- fading in from 79S to 84S, which is
+  where WAC stops being usable. Real photography survives wherever it exists.
+
+The two DEMs are cross-faded over 75.5S-77S in `Terrain.heightForTerrain()` so
+the mesh has no step at the seam, while `Terrain.heightAt()` stays truthful for
+the elevation readout.
+
 ## Surface detail
 
 `pipeline/detail.py` shades the 20 m DEM and averages down to the 120 m output

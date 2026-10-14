@@ -76,3 +76,9 @@ body { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
   transform-origin: left; transition: transform .2s ease;
 }
 #boot.failed .bootTrack { display: none; }
+
+.chk {
+  display: flex; align-items: center; gap: 7px; margin-top: 8px;
+  font-size: 11px; color: var(--dim); cursor: pointer;
+}
+.chk input { accent-color: var(--accent); cursor: pointer; }

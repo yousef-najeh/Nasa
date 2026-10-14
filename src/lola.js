@@ -1,18 +1,13 @@
 /**
- * Browser-side sampling of the LOLA south-polar DEM.
- * Mirrors pipeline/lola.py exactly: spherical polar stereographic,
- * south aspect, true scale at the pole.
+ * Browser-side sampling of the LOLA DEMs.
+ * Mirrors pipeline/lola.py: spherical polar stereographic for the south polar
+ * grid (south aspect, true scale at the pole), simple cylindrical for global.
  */
 
-export async function loadDem(base = "/data", onProgress) {
-  const meta = await fetch(`${base}/dem_south.json`).then((r) => r.json());
-
-  // The DEM runs to ~116 MB, so stream it and report progress rather than
-  // leaving the viewer on a blank screen.
-  const res = await fetch(`${base}/dem_south.bin`);
-  if (!res.ok) throw new Error(`dem_south.bin: HTTP ${res.status}`);
-  const total = Number(res.headers.get("content-length")) ||
-    meta.width * meta.height * 2;
+async function fetchWithProgress(url, expectedBytes, onProgress) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  const total = Number(res.headers.get("content-length")) || expectedBytes;
 
   const chunks = [];
   let received = 0;
@@ -31,10 +26,18 @@ export async function loadDem(base = "/data", onProgress) {
     bytes.set(c, at);
     at += c.length;
   }
+  return bytes.buffer;
+}
 
-  const dn = new Int16Array(bytes.buffer);
+/* ------------------------------------------------------------------ polar */
+
+export async function loadDem(base = "/data", onProgress) {
+  const meta = await fetch(`${base}/dem_south.json`).then((r) => r.json());
+  const buf = await fetchWithProgress(`${base}/dem_south.bin`,
+    meta.width * meta.height * 2, onProgress);
+  const dn = new Int16Array(buf);
   if (dn.length !== meta.width * meta.height) {
-    throw new Error(`DEM size mismatch: ${dn.length} vs ${meta.width * meta.height}`);
+    throw new Error(`polar DEM size mismatch: ${dn.length}`);
   }
   return new Dem(dn, meta);
 }
@@ -70,25 +73,83 @@ export class Dem {
     const c1 = Math.min(c0 + 1, this.n - 1), r1 = Math.min(r0 + 1, this.n - 1);
     const fc = c - c0, fr = r - r0;
     const d = this.dn, n = this.n;
-    const h00 = d[r0 * n + c0], h10 = d[r0 * n + c1];
-    const h01 = d[r1 * n + c0], h11 = d[r1 * n + c1];
-    const top = h00 + (h10 - h00) * fc;
-    const bot = h01 + (h11 - h01) * fc;
+    const top = d[r0 * n + c0] + (d[r0 * n + c1] - d[r0 * n + c0]) * fc;
+    const bot = d[r1 * n + c0] + (d[r1 * n + c1] - d[r1 * n + c0]) * fc;
     return (top + (bot - top) * fr) * this.k;
   }
 }
 
+/* ----------------------------------------------------------------- global */
+
+export async function loadGlobalDem(base = "/data", onProgress) {
+  const meta = await fetch(`${base}/dem_global.json`).then((r) => r.json());
+  const buf = await fetchWithProgress(`${base}/dem_global.bin`,
+    meta.width * meta.height * 2, onProgress);
+  const dn = new Int16Array(buf);
+  if (dn.length !== meta.width * meta.height) {
+    throw new Error(`global DEM size mismatch: ${dn.length}`);
+  }
+  return new GlobalDem(dn, meta);
+}
+
+export class GlobalDem {
+  constructor(dn, meta) {
+    this.dn = dn;
+    this.meta = meta;
+    this.w = meta.width;
+    this.h = meta.height;
+    this.res = meta.resolution;          // pixels per degree
+    this.k = meta.scalingFactor;
+  }
+
+  /** Bilinear height in metres above the 1737.4 km sphere. Wraps in longitude. */
+  heightAt(latDeg, lonDeg) {
+    const line = this.meta.lineOffset - latDeg * this.res;
+    let samp = this.meta.sampleOffset + (lonDeg - 180) * this.res;
+    samp = ((samp % this.w) + this.w) % this.w;
+
+    const r = Math.min(Math.max(line, 0), this.h - 1);
+    const r0 = Math.floor(r), r1 = Math.min(r0 + 1, this.h - 1);
+    const c0 = Math.floor(samp), c1 = (c0 + 1) % this.w;
+    const fr = r - r0, fc = samp - c0;
+
+    const d = this.dn, w = this.w;
+    const top = d[r0 * w + c0] + (d[r0 * w + c1] - d[r0 * w + c0]) * fc;
+    const bot = d[r1 * w + c0] + (d[r1 * w + c1] - d[r1 * w + c0]) * fc;
+    return (top + (bot - top) * fr) * this.k;
+  }
+}
+
+/* ---------------------------------------------------------------- combined */
+
 /**
- * Height for terrain meshing, faded to the reference sphere across the outer
- * edge of LOLA coverage. Without this the mesh drops off a cliff at 75S and
- * the limb renders as a comb of spikes. Kept separate from heightAt() so the
- * elevation readout stays truthful.
+ * Both grids behind one sampler. The polar DEM is ~16x finer, so it wins
+ * wherever it has coverage; the two are cross-faded over a latitude band so
+ * the mesh has no step at the seam.
  */
-Dem.prototype.heightForTerrain = function (latDeg, lonDeg, taperDeg = 1.5) {
-  const z = this.heightAt(latDeg, lonDeg);
-  if (Number.isNaN(z)) return 0;
-  const t = (this.meta.maxLat - latDeg) / taperDeg;   // 1 well inside, 0 at edge
-  if (t >= 1) return z;
-  if (t <= 0) return 0;
-  return z * t * t * (3 - 2 * t);                      // smoothstep
-};
+export class Terrain {
+  constructor(global, polar, fadeOuter = -75.5, fadeInner = -77.0) {
+    this.global = global;
+    this.polar = polar;
+    this.fadeOuter = fadeOuter;
+    this.fadeInner = fadeInner;
+  }
+
+  /** Truthful elevation for the readout — polar grid where it exists. */
+  heightAt(latDeg, lonDeg) {
+    const p = this.polar.heightAt(latDeg, lonDeg);
+    return Number.isNaN(p) ? this.global.heightAt(latDeg, lonDeg) : p;
+  }
+
+  /** Height for meshing, cross-faded across the polar coverage edge. */
+  heightForTerrain(latDeg, lonDeg) {
+    const g = this.global.heightAt(latDeg, lonDeg);
+    if (latDeg > this.fadeOuter) return g;
+    const p = this.polar.heightAt(latDeg, lonDeg);
+    if (Number.isNaN(p)) return g;
+    if (latDeg < this.fadeInner) return p;
+    const t = (this.fadeOuter - latDeg) / (this.fadeOuter - this.fadeInner);
+    const w = t * t * (3 - 2 * t);
+    return g + (p - g) * w;
+  }
+}

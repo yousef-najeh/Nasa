@@ -1,13 +1,21 @@
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
-import { loadDem } from "./lola.js";
+import { loadDem, loadGlobalDem, Terrain } from "./lola.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
 
-const COVERAGE = Cesium.Rectangle.fromDegrees(-180, -90, 180, -75);
+const POLAR_COVERAGE = Cesium.Rectangle.fromDegrees(-180, -90, 180, -75);
 const TILE_SAMPLES = 128;   // heightmap posts per terrain tile edge
+
+// LROC WAC global mosaic, served by NASA Moon Trek. Same tiling as Cesium's
+// GeographicTilingScheme (2x1 at level 0, 256 px tiles, origin -180/90), so it
+// maps straight across. Useless at the pole -- see docs/wac_polar_sample.png --
+// which is exactly what the polar relief overlay is for.
+const WAC_URL =
+  "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02" +
+  "/1.0.0//default/default028mm/{z}/{y}/{x}.jpg";
 
 const boot = document.getElementById("boot");
 const bootMsg = document.getElementById("bootMsg");
@@ -19,9 +27,15 @@ const setBoot = (msg, frac) => {
 };
 
 async function main() {
-  setBoot("LOADING LOLA TERRAIN", 0);
-  const dem = await loadDem("/data", (f) =>
-    setBoot(`LOADING LOLA TERRAIN  ${Math.round(f * 100)}%`, f));
+  setBoot("LOADING GLOBAL TERRAIN", 0);
+  const global = await loadGlobalDem("/data", (f) =>
+    setBoot(`LOADING GLOBAL TERRAIN  ${Math.round(f * 100)}%`, f * 0.2));
+
+  setBoot("LOADING POLAR TERRAIN", 0.2);
+  const polar = await loadDem("/data", (f) =>
+    setBoot(`LOADING POLAR TERRAIN  ${Math.round(f * 100)}%`, 0.2 + f * 0.8));
+
+  const terrain = new Terrain(global, polar);
   setBoot("BUILDING TERRAIN", 1);
 
   const terrainProvider = new Cesium.CustomHeightmapTerrainProvider({
@@ -33,9 +47,6 @@ async function main() {
     }),
     callback: (x, y, level) => {
       const rect = terrainProvider.tilingScheme.tileXYToRectangle(x, y, level);
-      // Entirely outside LOLA polar coverage -> flat sphere, skip the work.
-      if (Cesium.Math.toDegrees(rect.south) > -75) return undefined;
-
       const w = TILE_SAMPLES, h = TILE_SAMPLES;
       const out = new Float32Array(w * h);
       const dLon = (rect.east - rect.west) / (w - 1);
@@ -45,7 +56,7 @@ async function main() {
         const lat = Cesium.Math.toDegrees(rect.north - j * dLat);
         for (let i = 0; i < w; i++) {
           const lon = Cesium.Math.toDegrees(rect.west + i * dLon);
-          out[j * w + i] = dem.heightForTerrain(lat, lon);
+          out[j * w + i] = terrain.heightForTerrain(lat, lon);
         }
       }
       return out;
@@ -55,9 +66,16 @@ async function main() {
   const viewer = new Cesium.Viewer("cesiumContainer", {
     terrainProvider,
     baseLayer: Cesium.ImageryLayer.fromProviderAsync(
-      Cesium.SingleTileImageryProvider.fromUrl("/data/hillshade_south.png", {
-        rectangle: COVERAGE,
-      }),
+      Promise.resolve(new Cesium.UrlTemplateImageryProvider({
+        url: WAC_URL,
+        tilingScheme: new Cesium.GeographicTilingScheme({
+          ellipsoid: Cesium.Ellipsoid.MOON,
+        }),
+        tileWidth: 256,
+        tileHeight: 256,
+        maximumLevel: 8,
+        credit: "LROC WAC mosaic — NASA/GSFC/ASU, served by NASA Moon Trek",
+      })),
       {},
     ),
     baseLayerPicker: false,
@@ -77,12 +95,15 @@ async function main() {
   });
 
   const { scene } = viewer;
-  // LOLA polar coverage stops at 75S; clip the globe there so the imagery
-  // does not smear radially outward past the data edge.
-  scene.globe.cartographicLimitRectangle = COVERAGE;
-  // Skirts must stay on: they hide the cracks between terrain tiles of
-  // differing LOD, which are very visible in oblique near-surface views.
-  scene.globe.baseColor = Cesium.Color.fromCssColorString("#0b0c0e");
+
+  // Our rendered polar relief, over the top of WAC where WAC goes black.
+  // Its alpha ramps in from 76S so there is no hard circular seam.
+  const polarLayer = viewer.imageryLayers.addImageryProvider(
+    await Cesium.SingleTileImageryProvider.fromUrl(
+      "/data/hillshade_south.png", { rectangle: POLAR_COVERAGE }),
+  );
+
+  scene.globe.baseColor = Cesium.Color.fromCssColorString("#15171b");
   scene.globe.showGroundAtmosphere = false;
   // Shading is baked into the imagery from a real Sun elevation; Cesium's own
   // lighting is Earth-referenced, so it stays off until SPICE lands.
@@ -90,7 +111,7 @@ async function main() {
   // With a non-WGS84 ellipsoid Cesium does not create these at all.
   if (scene.sun) scene.sun.show = false;
   if (scene.moon) scene.moon.show = false;
-  scene.globe.maximumScreenSpaceError = 1.5;   // sharper terrain LOD
+  scene.globe.maximumScreenSpaceError = 1.5;
   scene.verticalExaggeration = 1.6;
   scene.screenSpaceCameraController.minimumZoomDistance = 60;
   // Leftover inertia drifts the camera off a programmatic setView, which
@@ -107,15 +128,14 @@ async function main() {
       roll: 0,
     },
   });
-  const HOME = () => view(-90, 1_500_000, -90);
+  const GLOBE = () => view(-28, 5_200_000, -90);
+  const POLE = () => view(-90, 1_500_000, -90);
 
-  viewer.camera.setView(view(-90, 3_200_000, -90));
-  await new Promise((r) => setTimeout(r, 350));
-  viewer.camera.flyTo({ ...HOME(), duration: 2.6,
-    easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
+  // Open on the whole Moon, then settle toward the south pole.
+  viewer.camera.setView(GLOBE());
 
   document.getElementById("srcTag").textContent =
-    `${dem.meta.source} · ${dem.n}² @ ${dem.meta.mapScale} m/px`;
+    `global ${global.w}×${global.h} · polar ${polar.n}² @ ${polar.meta.mapScale} m/px`;
 
   // --- HUD -----------------------------------------------------------------
   const el = (id) => document.getElementById(id);
@@ -130,8 +150,8 @@ async function main() {
     const lon = ((Cesium.Math.toDegrees(carto.longitude) % 360) + 360) % 360;
     el("hLat").textContent = `${lat.toFixed(3)}°`;
     el("hLon").textContent = `${lon.toFixed(2)}°`;
-    const z = dem.heightAt(lat, lon);
-    el("hElev").textContent = Number.isNaN(z) ? "no data" : `${z.toFixed(0)} m`;
+    const z = terrain.heightAt(lat, lon);
+    el("hElev").textContent = Number.isFinite(z) ? `${z.toFixed(0)} m` : "—";
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
   scene.postRender.addEventListener(() => {
@@ -149,14 +169,22 @@ async function main() {
     el("vexVal").textContent = `${Number(vex.value).toFixed(1)}×`;
   });
 
+  const relief = el("relief");
+  relief.addEventListener("change", () => { polarLayer.show = relief.checked; });
+
+  el("btnGlobe").addEventListener("click", () =>
+    viewer.camera.flyTo({ ...GLOBE(), duration: 2.0 }));
   el("btnHome").addEventListener("click", () =>
-    viewer.camera.flyTo({ ...HOME(), duration: 1.6 }));
+    viewer.camera.flyTo({ ...POLE(), duration: 2.0 }));
   el("btnOblique").addEventListener("click", () =>
-    viewer.camera.flyTo({ ...view(-86.5, 90_000, -22, 180), duration: 2.0 }));
+    viewer.camera.flyTo({ ...view(-86.5, 90_000, -22, 180), duration: 2.2 }));
 
   boot.classList.add("gone");
   setTimeout(() => boot.remove(), 650);
-  Object.assign(window, { viewer, Cesium, dem });
+  setTimeout(() => viewer.camera.flyTo({ ...POLE(), duration: 4.0,
+    easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT }), 900);
+
+  Object.assign(window, { viewer, Cesium, terrain, polarLayer });
 }
 
 main().catch((err) => {

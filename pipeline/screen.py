@@ -219,6 +219,16 @@ if __name__ == "__main__":
     export_detail(fine, fo)
 
 
+def _unit_rows(v):
+    u = v / np.linalg.norm(v, axis=1, keepdims=True)
+    return [[round(float(a), 6) for a in row] for row in u]
+
+
+def spice_utc(et):
+    import spiceypy as spice
+    return spice.et2utc(et, "ISOC", 0)
+
+
 def export_full(fine, order, rec_coarse, top=24, n_az=360, step_hours=3.0,
                 days=365.25):
     """Export all six criteria per site, plus one shared sky track."""
@@ -276,6 +286,14 @@ def export_full(fine, order, rec_coarse, top=24, n_az=360, step_hours=3.0,
             "sunEl": [round(float(v), 3) for v in sun[1]],
             "earthAz": [round(float(v), 2) for v in earth[0]],
             "earthEl": [round(float(v), 3) for v in earth[1]],
+            # Unit directions in MOON_ME, which is also Cesium's fixed frame
+            # once Ellipsoid.default is the Moon -- so the viewer can place
+            # both bodies in the real direction without redoing any geometry.
+            "sunDir": _unit_rows(pos["sun"]),
+            "earthDir": _unit_rows(pos["earth"]),
+            "sunDistKm": [int(v) for v in np.linalg.norm(pos["sun"], axis=1)],
+            "earthDistKm": [int(v) for v in np.linalg.norm(pos["earth"], axis=1)],
+            "epochs": [spice_utc(e) for e in pos["ets"]],
         },
         "sites": sites,
     }

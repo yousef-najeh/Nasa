@@ -118,6 +118,22 @@
       </dl>
       <div id="spExcl" class="excl hidden"></div>
 
+      <div class="now">
+        <div class="nowhead">
+          <span id="nowEpoch">—</span>
+          <button id="nowPlay" type="button">▶</button>
+        </div>
+        <input id="nowTime" type="range" min="0" max="2922" step="1" value="0" />
+        <div class="nowrow">
+          <span><i class="sw sun"></i>Sun <b id="nowSun">—</b></span>
+          <span><i class="sw earth"></i>Earth <b id="nowEarth">—</b></span>
+        </div>
+        <div class="btns stand">
+          <button id="spStandSun" type="button">Look at Sun</button>
+          <button id="spStandEarth" type="button">Look at Earth</button>
+        </div>
+      </div>
+
       <figure>
         <figcaption>Sky over this site &mdash; one year from 2027-01-01</figcaption>
         <canvas id="spSky"></canvas>

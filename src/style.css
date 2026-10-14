@@ -208,3 +208,22 @@ body { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
 .excl { margin: 0 12px 10px; padding: 7px 9px; border-radius: 4px;
   background: #2a1a1a; border: 1px solid #52302f; color: #e66767; font-size: 11px; }
 .excl.hidden { display: none; }
+
+/* --- time control ------------------------------------------------------- */
+.now { padding: 10px 12px; border-top: 1px solid var(--line); }
+.nowhead { display: flex; align-items: center; justify-content: space-between; }
+.nowhead span { font: 11px var(--mono); color: var(--text); }
+#nowPlay {
+  background: #171a1f; border: 1px solid var(--line); border-radius: 4px;
+  color: var(--text); cursor: pointer; font-size: 10px; padding: 3px 9px;
+}
+#nowPlay:hover { background: #1e222a; }
+#nowTime { width: 100%; margin: 8px 0 6px; accent-color: var(--accent); }
+.nowrow { display: flex; gap: 14px; font-size: 11px; color: var(--dim); }
+.nowrow span { display: flex; align-items: center; gap: 5px; }
+.nowrow b { font: 11px var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.nowrow b.lit { color: #c98500; }
+.nowrow b.vis { color: #3987e5; }
+
+.btns.stand { margin-top: 9px; }
+.btns.stand button { font-size: 10px; padding: 5px 6px; }

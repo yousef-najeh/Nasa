@@ -5,6 +5,7 @@ import { loadDem, loadGlobalDem, Terrain } from "./lola.js";
 import { setupNavigation } from "./navigation.js";
 import { loadSites, addSiteMarkers, drawHorizon } from "./sites.js";
 import { CRITERIA, PRESETS, ranges, score } from "./scoring.js";
+import { SkyBodies } from "./bodies.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
@@ -279,6 +280,8 @@ async function main() {
     if (s.excluded) ex.textContent = `Fails hard limit — ${s.reasons.join("; ")}`;
 
     panel.classList.remove("hidden");
+    bodies.setSite(s);
+    updateNow();
     drawHorizon(el("spSky"), s, sky);
     renderList();
     if (!fly) return;
@@ -292,7 +295,73 @@ async function main() {
     });
   };
 
+  const bodies = new SkyBodies(viewer, sky);
   const markers = addSiteMarkers(viewer, doc.sites, showSite);
+
+  // --- time scrubber: watch the Sun circle this site's horizon -------------
+  const fmtEpoch = (iso) => {
+    const [d, t] = iso.split("T");
+    return `${d}  ${t.slice(0, 5)} UTC`;
+  };
+  const updateNow = () => {
+    el("nowEpoch").textContent = fmtEpoch(bodies.epoch);
+    for (const [name, id] of [["sun", "nowSun"], ["earth", "nowEarth"]]) {
+      const ae = bodies.azel(name);
+      if (!ae) { el(id).textContent = "—"; continue; }
+      const hor = current
+        ? current.horizon[Math.round((ae.az / 360) * current.horizon.length)
+            % current.horizon.length]
+        : 0;
+      const up = ae.el > hor;
+      el(id).textContent = `${ae.el >= 0 ? "+" : ""}${ae.el.toFixed(2)}°`;
+      el(id).className = up ? (name === "sun" ? "lit" : "vis") : "";
+      el(id).title = up ? "above the local skyline" : "blocked by terrain";
+    }
+  };
+
+  // Looking down at 55 deg hides both bodies: they sit on the horizon. This
+  // drops the camera to the site and looks out along the Sun's bearing.
+  const standHere = (name = "sun") => {
+    if (!current) return;
+    const ae = bodies.azel(name);
+    nav.settle();
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        current.lon, current.lat, current.elev + 250, Cesium.Ellipsoid.MOON),
+      orientation: {
+        heading: Cesium.Math.toRadians(ae ? ae.az : 0),
+        pitch: Cesium.Math.toRadians(1.5),
+        roll: 0,
+      },
+      duration: 2.0,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT,
+    });
+  };
+  el("spStandSun").addEventListener("click", () => standHere("sun"));
+  el("spStandEarth").addEventListener("click", () => standHere("earth"));
+
+  const time = el("nowTime");
+  time.max = String(sky.sunDir.length - 1);
+  time.addEventListener("input", () => {
+    bodies.setIndex(Number(time.value));
+    updateNow();
+  });
+
+  let playing = null;
+  el("nowPlay").addEventListener("click", () => {
+    if (playing) {
+      clearInterval(playing); playing = null;
+      el("nowPlay").textContent = "▶";
+      return;
+    }
+    el("nowPlay").textContent = "❚❚";
+    playing = setInterval(() => {
+      const next = (Number(time.value) + 1) % sky.sunDir.length;
+      time.value = String(next);
+      bodies.setIndex(next);
+      updateNow();
+    }, 60);
+  });
 
   for (const c of CRITERIA) {
     el(`w-${c.key}`).addEventListener("input", (e) => {
@@ -322,7 +391,10 @@ async function main() {
     rescore();
   });
 
-  el("spClose").addEventListener("click", () => panel.classList.add("hidden"));
+  el("spClose").addEventListener("click", () => {
+    panel.classList.add("hidden");
+    bodies.hide();
+  });
   el("showSites").addEventListener("change", (e) => {
     for (const m of markers) m.show = e.target.checked;
     el("ranking").style.display = e.target.checked ? "" : "none";
@@ -345,7 +417,7 @@ async function main() {
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
   }, 900);
 
-  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav, doc, showSite, rescore });
+  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav, doc, showSite, rescore, bodies });
 }
 
 main().catch((err) => {

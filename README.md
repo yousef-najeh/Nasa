@@ -194,6 +194,25 @@ Why criterion 4 mattered: the most illuminated site found (87.9% sun) has a
 outright, and the top site becomes an 80.5% one with a 11.1 deg worst slope
 and permanent shadow 0.6 km away. Illumination optimum is not landing optimum.
 
+## Sun and Earth in the scene
+
+`src/bodies.js` draws both bodies in the sky over the selected site, with a
+dashed sight line and a live elevation readout, plus a scrubber and play button
+over the year.
+
+They are placed along the direction **from the site**, not from the Moon's
+centre. That distinction is normally pedantic and here it is decisive: the
+parallax is a few degrees for the Sun and ~0.26 deg for Earth, while the Sun
+spends the entire year within 1.5 deg of the horizon and Earth sits roughly on
+it. Centre-referenced placement would put both in visibly the wrong place.
+
+Range is compressed so both stay on screen at site zoom -- direction is exact,
+distance is not, and neither is drawn to physical scale.
+
+"Look at Sun" / "Look at Earth" drop the camera to the site and face the body's
+bearing. Without that both are off-screen: they are on the horizon, and the
+site view looks down at 55 degrees.
+
 ## Next
 
 Phase B — the horizon/illumination engine. See the plan: compute a 360-azimuth

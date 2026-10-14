@@ -82,3 +82,19 @@ body { font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: v
   font-size: 11px; color: var(--dim); cursor: pointer;
 }
 .chk input { accent-color: var(--accent); cursor: pointer; }
+
+/* --- controls legend ---------------------------------------------------- */
+#help summary {
+  cursor: pointer; list-style: none; font-size: 10px; letter-spacing: .1em;
+  color: var(--dim); user-select: none;
+}
+#help summary::-webkit-details-marker { display: none; }
+#help summary::before { content: "▸ "; }
+#help[open] summary::before { content: "▾ "; }
+#help summary:hover { color: var(--text); }
+.keys {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 10px;
+  margin: 9px 0 0; font-size: 11px;
+}
+.keys dt { font-family: var(--mono); color: var(--text); white-space: nowrap; }
+.keys dd { margin: 0; color: var(--dim); }

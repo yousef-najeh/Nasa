@@ -2,6 +2,7 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
 import { loadDem, loadGlobalDem, Terrain } from "./lola.js";
+import { setupNavigation } from "./navigation.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
@@ -113,12 +114,10 @@ async function main() {
   if (scene.moon) scene.moon.show = false;
   scene.globe.maximumScreenSpaceError = 1.5;
   scene.verticalExaggeration = 1.6;
-  scene.screenSpaceCameraController.minimumZoomDistance = 60;
-  // Leftover inertia drifts the camera off a programmatic setView, which
-  // matters once sites are flown to from the ranked list.
-  scene.screenSpaceCameraController.inertiaSpin = 0;
-  scene.screenSpaceCameraController.inertiaTranslate = 0;
-  scene.screenSpaceCameraController.inertiaZoom = 0;
+
+  const nav = setupNavigation(viewer, {
+    getHeight: (lat, lon) => terrain.heightAt(lat, lon),
+  });
 
   const view = (lat, alt, pitchDeg, headingDeg = 0) => ({
     destination: Cesium.Cartesian3.fromDegrees(0, lat, alt, Cesium.Ellipsoid.MOON),
@@ -132,6 +131,7 @@ async function main() {
   const POLE = () => view(-90, 1_500_000, -90);
 
   // Open on the whole Moon, then settle toward the south pole.
+  nav.settle();
   viewer.camera.setView(GLOBE());
 
   document.getElementById("srcTag").textContent =
@@ -172,19 +172,31 @@ async function main() {
   const relief = el("relief");
   relief.addEventListener("change", () => { polarLayer.show = relief.checked; });
 
-  el("btnGlobe").addEventListener("click", () =>
-    viewer.camera.flyTo({ ...GLOBE(), duration: 2.0 }));
-  el("btnHome").addEventListener("click", () =>
-    viewer.camera.flyTo({ ...POLE(), duration: 2.0 }));
-  el("btnOblique").addEventListener("click", () =>
-    viewer.camera.flyTo({ ...view(-86.5, 90_000, -22, 180), duration: 2.2 }));
+  el("btnGlobe").addEventListener("click", () => {
+    nav.settle();
+    viewer.camera.flyTo({ ...GLOBE(), duration: 2.0,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
+  });
+  el("btnHome").addEventListener("click", () => {
+    nav.settle();
+    viewer.camera.flyTo({ ...POLE(), duration: 2.0,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
+  });
+  el("btnOblique").addEventListener("click", () => {
+    nav.settle();
+    viewer.camera.flyTo({ ...view(-86.5, 90_000, -22, 180), duration: 2.2,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
+  });
 
   boot.classList.add("gone");
   setTimeout(() => boot.remove(), 650);
-  setTimeout(() => viewer.camera.flyTo({ ...POLE(), duration: 4.0,
-    easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT }), 900);
+  setTimeout(() => {
+    nav.settle();
+    viewer.camera.flyTo({ ...POLE(), duration: 4.0,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
+  }, 900);
 
-  Object.assign(window, { viewer, Cesium, terrain, polarLayer });
+  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav });
 }
 
 main().catch((err) => {

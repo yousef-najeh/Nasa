@@ -87,6 +87,27 @@ would be the source if we want it.
 including the `d^2/2R` curvature drop-off, so it is already on the critical
 path rather than being decoration.
 
+## Navigation
+
+`src/navigation.js` owns the camera. Cesium defaults assume Earth and a
+ground-level user; here the camera works from 5000 km out down to standing on
+a crater rim, so every rate scales with height above the surface.
+
+- Mouse bindings match what people know from maps: left drag orbits, right
+  drag tilts, shift-drag looks around, wheel zooms. Cesium puts zoom on
+  right-drag by default, which surprises everyone.
+- **Zoom goes toward the cursor.** Cesium zooms along the view axis, so the
+  feature you aimed at slides out of frame. The pointer position is tracked
+  directly off the canvas, because the wheel action reports only a delta --
+  if the position were unknown the zoom would silently revert to the screen
+  centre.
+- Double-click flies in to the picked point.
+- WASD / RF / QE, Shift for 3.5x. Q/E use `lookLeft`/`lookRight`, not `twist`:
+  twisting rolls the horizon over and leaves the view crooked.
+- Inertia is back at Cesium defaults. It had been zeroed to stop a
+  programmatic `setView` from drifting, which cost all the glide; `nav.settle()`
+  now cancels inertia for one frame around programmatic moves instead.
+
 ## The globe
 
 The viewer opens on the whole Moon, not a polar disc. Three sources stack:

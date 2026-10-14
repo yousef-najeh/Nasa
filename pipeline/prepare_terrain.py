@@ -19,7 +19,8 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
 import lola
-from shade import relief, bilinear, lunar_surface
+from shade import relief, bilinear, reflectance, shadow_factor
+from detail import fine_reflectance, splice
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "data"
@@ -33,6 +34,7 @@ SHADE_LON, SHADE_LAT = 16384, 4096   # 4096 radial samples over 455 km = 111 m
 STYLE = "realistic"
 SUN_AZ, SUN_ELEV = 45.0, 12.0
 ALBEDO = 0.136
+FINE_SRC = "ldem_80s_20m"   # supersample reflectance from 20 m where available
 
 
 def load(name):
@@ -74,10 +76,24 @@ def write_hillshade():
 
     z = arr.astype(np.float32) * meta["scaling_factor"]
     if STYLE == "realistic":
-        print(f"  lunar surface: Sun az {SUN_AZ} deg, elev {SUN_ELEV} deg, cast shadows")
-        shade = lunar_surface(z, px, SUN_AZ, SUN_ELEV,
-                              meta["a_axis_km"] * 1000.0, albedo=ALBEDO)
-        shade = np.clip(shade / ALBEDO, 0, 1).astype(np.float32)
+        R = meta["a_axis_km"] * 1000.0
+        print(f"  Sun az {SUN_AZ} deg, elev {SUN_ELEV} deg")
+        refl = reflectance(z, px, SUN_AZ, SUN_ELEV, ALBEDO)
+
+        if FINE_SRC:
+            print(f"  supersampling reflectance from {FINE_SRC}")
+            fa, fm = load(FINE_SRC)
+            fine, fpx, fhalf = fine_reflectance(
+                fa, fm, SUN_AZ, SUN_ELEV,
+                factor=int(px // fm["map_scale"]), albedo=ALBEDO)
+            splice(refl, px, half, fine, fpx, fhalf)
+            del fa, fine
+
+        print("  cast shadows")
+        refl *= shadow_factor(z, px, SUN_AZ, SUN_ELEV, R)
+        refl += ALBEDO * 0.025
+        shade = np.clip(refl / ALBEDO, 0, 1).astype(np.float32)
+        del refl
     else:
         shade = relief(z, px)
 

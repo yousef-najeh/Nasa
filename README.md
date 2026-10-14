@@ -87,6 +87,19 @@ would be the source if we want it.
 including the `d^2/2R` curvature drop-off, so it is already on the critical
 path rather than being decoration.
 
+## Surface detail
+
+`pipeline/detail.py` shades the 20 m DEM and averages down to the 120 m output
+grid. This is not the same as shading the averaged terrain -- the average keeps
+the variance contributed by sub-pixel roughness, so the surface regains real
+measured texture instead of being perfectly smooth below 120 m. Only the local
+reflectance is computed at 20 m; cast shadows stay coarse, since ray-marching
+56 km of shadow across 30400^2 pixels buys nothing.
+
+The two grids are concentric in the same projection, so splicing is a centred
+overwrite -- the 20 m DEM covers 80-90S and lands at a 1279 px offset in the
+120 m grid, exactly.
+
 ## Next
 
 Phase B — the horizon/illumination engine. See the plan: compute a 360-azimuth

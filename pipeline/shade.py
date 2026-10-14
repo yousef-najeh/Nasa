@@ -139,3 +139,24 @@ def lunar_surface(z, px, az_deg, elev_deg, radius, albedo=0.136,
         lit = gaussian_filter(lit, shadow_softness)
 
     return refl * lit + albedo * ambient
+
+
+def reflectance(z, px, az_deg, elev_deg, albedo=0.136):
+    """Lommel-Seeliger reflectance only -- no shadowing. Near-nadir view."""
+    dy, dx = np.gradient(z.astype(np.float32), px, px)
+    inv = (1.0 / np.sqrt(dx * dx + dy * dy + 1.0)).astype(np.float32)
+    s = sun_vector(az_deg, elev_deg).astype(np.float32)
+    mu0 = (-dx * s[0] - dy * s[1]) * inv + inv * s[2]
+    del dx, dy
+    np.clip(mu0, 0.0, None, out=mu0)
+    out = albedo * mu0 / np.maximum(mu0 + inv, 1e-6)
+    return out
+
+
+def shadow_factor(z, px, az_deg, elev_deg, radius, softness=1.2):
+    """Fraction of the solar disc visible: 1 lit, 0 fully shadowed."""
+    lit = (~cast_shadow(z, px, az_deg, elev_deg, radius)).astype(np.float32)
+    if softness > 0:
+        # the Sun is a ~0.5 deg disc, so shadow edges carry a real penumbra
+        lit = gaussian_filter(lit, softness)
+    return lit

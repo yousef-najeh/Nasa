@@ -1,3 +1,4 @@
+| Albedo / imagery | LROC WAC mosaic; NAC for sites | LROC | **ruled out at the pole** |
 # Lunar South Pole Site Finder — Plan
 
 Rank candidate landing sites around the Moon's south pole from NASA data, and
@@ -216,6 +217,11 @@ See `README.md` for the full log. The expensive ones:
   renders as a comb of spikes.
 - Zero the camera controller inertias, or a programmatic `setView` drifts
   ~16 km in 3 s — which will matter when flying to sites from the ranked list.
+- LROC WAC photography is NOT usable as a polar base layer: ~39% of the
+  south-polar mosaic is pure black and it degenerates into smeared streaks
+  approaching the pole. See `docs/wac_polar_sample.png`, reproduce with
+  `pipeline/sample_wac.py`. There is no good photographic albedo for this
+  region -- which is exactly why ShadowCam exists.
 - A literal "full moon" render is useless: at zero phase angle nothing casts a
   visible shadow and all relief vanishes. Real full-moon detail is albedo,
   which LOLA does not carry. See `docs/sun_compare.png`.

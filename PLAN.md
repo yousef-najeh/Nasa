@@ -1,4 +1,3 @@
-| Albedo / imagery | LROC WAC mosaic; NAC for sites | LROC | **ruled out at the pole** |
 # Lunar South Pole Site Finder — Plan
 
 Rank candidate landing sites around the Moon's south pole from NASA data, and
@@ -43,12 +42,12 @@ and comms hard; *Robotic / ISRU* weights PSR proximity and ice.
 | Layer | Product | Source | Status |
 |---|---|---|---|
 | Terrain, regional | LOLA polar GDR 240 m, 120 m | PDS Geosciences | **on disk** |
-| Terrain, site | LOLA polar GDR 20 m | PDS Geosciences | **on disk**, unused |
+| Terrain, site | LOLA polar GDR 20 m | PDS Geosciences | **in use** — supersampled detail |
 | Terrain, finalists | LOLA+NAC co-registered DTM 1-2 m | PGDA | todo |
 | Illumination truth | PGDA illumination / Earth-visibility maps | PGDA | todo — **validation only** |
 | PSR polygons | LOLA-derived PSR shapefiles | LROC / PDS | todo |
 | Temperature | Diviner bolometric max / average | PDS Geosciences | todo |
-| Albedo / imagery | LROC WAC mosaic; NAC for sites | LROC | todo |
+| Albedo / imagery | LROC WAC mosaic; NAC for sites | LROC | **ruled out as a polar base layer** |
 | Inside the PSRs | ShadowCam (KPLO) | PDS | todo — hero asset |
 | Ephemeris | de440, moon_pa_de440, pck00011, naif0012 | NAIF | reachable |
 

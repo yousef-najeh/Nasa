@@ -16,13 +16,18 @@ import { loadEarthTexture, drawEarth, drawSun } from "./render_bodies.js";
  * neither body is drawn to physical scale.
  */
 
-const SKY_DIST = 70_000;      // m from the site -- display only
-// True angular radii are 0.27 deg (Sun) and ~0.95 deg (Earth). At those sizes
-// both are a handful of pixels, so they are magnified for visibility. The
-// factor is shown in the UI; direction and phase stay exact.
-const MAGNIFY = 9;
-const SUN_ANG_DEG = 0.271;
-const EARTH_ANG_DEG = 0.95;
+// Both bodies sit at their true positions and true size. Placing them nearby
+// made them look like props resting on the surface; at real range they read as
+// what they are, and the angular sizes (0.5 deg Sun, ~1.9 deg Earth) then come
+// out right on their own with no fudge factor.
+const SUN_RADIUS_M = 695_700_000;
+const EARTH_RADIUS_M = 6_371_000;
+// The Sun canvas is mostly corona: its core disc spans this fraction of the
+// image, so the billboard is scaled up to make the core subtend correctly.
+const SUN_CORE_FRAC = 0.30;
+// The sight line only marks the bearing -- drawn to Earth's true distance it
+// would be a 384,000 km streak.
+const RAY_LEN = 55_000;
 const MOON = Cesium.Ellipsoid.MOON;
 
 export { loadEarthTexture };
@@ -38,18 +43,17 @@ export class SkyBodies {
     this.earthCanvas = document.createElement("canvas");
     this._lastDrawn = -1;
 
-    const sizeFor = (angDeg) =>
-      2 * SKY_DIST * Math.tan(Cesium.Math.toRadians(angDeg)) * MAGNIFY;
-
-    const mk = (name, color, angDeg) => viewer.entities.add({
+    const mk = (name, color, widthM) => viewer.entities.add({
       show: false,
       position: new Cesium.CallbackProperty(() => this._pos(name), false),
       billboard: {
         image: new Cesium.CallbackProperty(
           () => (name === "sun" ? this.sunCanvas : this.earthCanvas), false),
-        sizeInMeters: true,
-        width: sizeFor(angDeg) * (name === "sun" ? 3.2 : 1.0),  // corona
-        height: sizeFor(angDeg) * (name === "sun" ? 3.2 : 1.0),
+        // Sized in pixels from the true angular diameter rather than with
+        // sizeInMeters: at 10^8 km the metre-based path loses all precision
+        // and the billboard disappears. This keeps the apparent size exact and
+        // makes it grow as the field of view narrows, like a telescope.
+        scale: new Cesium.CallbackProperty(() => this._scale(name), false),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
@@ -61,15 +65,13 @@ export class SkyBodies {
         backgroundPadding: new Cesium.Cartesian2(5, 3),
         pixelOffset: new Cesium.Cartesian2(0, -26),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        translucencyByDistance: new Cesium.NearFarScalar(1e6, 1.0, 1e9, 1.0),
       },
-      // Sight line back to the landing site, so the bearing is anchored to the
-      // point being evaluated. Hidden once the camera is essentially at the
-      // site, where the line is end-on and reads as a meaningless vertical.
+      // A short ray from the landing site marking the bearing only.
       polyline: {
         positions: new Cesium.CallbackProperty(() => {
           if (!this.site || this._cameraAtSite()) return [];
-          const p = this._pos(name);
-          return p ? [this._sitePos(), p] : [];
+          return [this._sitePos(), this._rayEnd(name)];
         }, false),
         width: 1.5,
         material: new Cesium.PolylineDashMaterialProperty({
@@ -80,8 +82,8 @@ export class SkyBodies {
       },
     });
 
-    this.sun = mk("sun", SUN_COLOR, SUN_ANG_DEG);
-    this.earth = mk("earth", EARTH_COLOR, EARTH_ANG_DEG);
+    this.sun = mk("sun", SUN_COLOR, (2 * SUN_RADIUS_M) / SUN_CORE_FRAC);
+    this.earth = mk("earth", EARTH_COLOR, 2 * EARTH_RADIUS_M);
   }
 
   /** True when the camera is close enough that the sight line degenerates. */
@@ -89,7 +91,7 @@ export class SkyBodies {
     if (!this.site) return false;
     const d = Cesium.Cartesian3.distance(
       this.viewer.camera.position, this._sitePos());
-    return d < SKY_DIST * 0.12;
+    return d < RAY_LEN * 0.15;
   }
 
   _sitePos() {
@@ -110,12 +112,39 @@ export class SkyBodies {
     return Cesium.Cartesian3.normalize(v, v);
   }
 
+  /** The body's actual position in MOON_ME, in metres. */
   _pos(name) {
-    if (!this.site) return undefined;
+    const sky = this.sky;
+    const dir = name === "sun" ? sky.sunDir[this.index] : sky.earthDir[this.index];
+    const distM = (name === "sun"
+      ? sky.sunDistKm[this.index] : sky.earthDistKm[this.index]) * 1000;
+    return new Cesium.Cartesian3(
+      dir[0] * distM, dir[1] * distM, dir[2] * distM);
+  }
+
+  /** Billboard scale so the disc subtends its true angular size on screen. */
+  _scale(name) {
+    const cam = this.viewer.camera;
+    const pos = this._pos(name);
+    const dist = Cesium.Cartesian3.distance(pos, cam.position);
+    const radius = name === "sun" ? SUN_RADIUS_M : EARTH_RADIUS_M;
+    const angDiam = 2 * Math.atan(radius / dist);           // radians
+
+    const fovY = cam.frustum.fovy ?? Cesium.Math.toRadians(60);
+    const h = this.viewer.scene.canvas.clientHeight || 720;
+    let px = (angDiam / fovY) * h;
+    if (name === "sun") px /= SUN_CORE_FRAC;                 // core, not corona
+
+    const base = name === "sun" ? this.sunCanvas.width : this.earthCanvas.width;
+    // A floor keeps both findable when zoomed out; the Sun is only 0.5 deg.
+    return Math.max(px, name === "sun" ? 14 : 10) / base;
+  }
+
+  _rayEnd(name) {
     const d = this._dir(name);
     return Cesium.Cartesian3.add(
       this._sitePos(),
-      Cesium.Cartesian3.multiplyByScalar(d, SKY_DIST, new Cesium.Cartesian3()),
+      Cesium.Cartesian3.multiplyByScalar(d, RAY_LEN, new Cesium.Cartesian3()),
       new Cesium.Cartesian3());
   }
 

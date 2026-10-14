@@ -115,6 +115,10 @@ async function main() {
   // With a non-WGS84 ellipsoid Cesium does not create these at all.
   if (scene.sun) scene.sun.show = false;
   if (scene.moon) scene.moon.show = false;
+  // The Sun sits 147 million km out; the default far plane is 500,000 km, so
+  // it would be clipped away entirely. The log depth buffer copes with the
+  // range.
+  scene.camera.frustum.far = 2.0e11;
   scene.globe.maximumScreenSpaceError = 1.5;
   scene.verticalExaggeration = 1.6;
 

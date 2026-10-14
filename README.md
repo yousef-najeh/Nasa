@@ -213,9 +213,20 @@ and the terminator comes from the real Sun direction, giving the true phase.
 Earth phases run opposite to the Moon's as seen from Earth, so a permanently
 full Earth would be wrong in a way anyone checking would catch.
 
-Range is compressed and both are magnified 9x to stay visible at site zoom
-(the Sun really subtends 0.5 deg, Earth 1.9 deg). Direction and phase are
-exact; size and distance are not, and the UI says so.
+Both sit at their **true positions and true size** -- Earth around 360,000 km,
+the Sun 147.6 million km. Placing them nearby made them read as props resting
+on the surface; at real range they look like what they are, and the angular
+sizes come out right with no fudge factor. Verified in the browser: Earth
+draws at 2.029 deg against a true 2.029 deg, the Sun at 0.540 against 0.540.
+
+Two things this needed:
+
+- The camera far plane goes to 2e11 m. The default is 5e8 (500,000 km), which
+  clips the Sun away entirely.
+- Billboards are scaled **in pixels from the angular diameter**, not with
+  `sizeInMeters`. At 10^8 km the metre-based path loses precision and the
+  billboard simply vanishes -- labels render, discs do not. The pixel path also
+  makes them grow as the field of view narrows, like a telescope.
 
 "Look at Sun" / "Look at Earth" drop the camera to the site and face the body's
 bearing. Without that both are off-screen: they are on the horizon, and the

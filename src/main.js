@@ -284,6 +284,12 @@ async function main() {
     ex.classList.toggle("hidden", !s.excluded);
     if (s.excluded) ex.textContent = `Fails hard limit — ${s.reasons.join("; ")}`;
 
+    // Isolate the selection. With the full grid and every marker drawn, the
+    // one point you just clicked is the one thing you cannot see.
+    cloud.show = false;
+    el("legend").style.display = "none";
+    for (const m of markers) m.show = m.siteData.id === s.id;
+
     panel.classList.remove("hidden");
     bodies.setSite(s);
     updateNow();
@@ -328,8 +334,12 @@ async function main() {
     });
   }
   el("showPoints").addEventListener("change", (e) => {
-    cloud.show = e.target.checked;
-    el("legend").style.display = e.target.checked ? "" : "none";
+    const on = e.target.checked;
+    // While a site is isolated, the toggle records intent for when it closes.
+    if (!current) {
+      cloud.show = on;
+      el("legend").style.display = on ? "" : "none";
+    }
   });
   // thin the dots out when zoomed far in so terrain stays readable
   scene.postRender.addEventListener(() => {
@@ -434,9 +444,20 @@ async function main() {
     rescore();
   });
 
+  const restoreLayers = () => {
+    const wantPoints = el("showPoints").checked;
+    const wantSites = el("showSites").checked;
+    cloud.show = wantPoints;
+    el("legend").style.display = wantPoints ? "" : "none";
+    for (const m of markers) m.show = wantSites;
+  };
+
   el("spClose").addEventListener("click", () => {
     panel.classList.add("hidden");
     bodies.hide();
+    current = null;
+    restoreLayers();
+    renderList();
   });
   el("showSites").addEventListener("change", (e) => {
     for (const m of markers) m.show = e.target.checked;

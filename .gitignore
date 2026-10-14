@@ -159,3 +159,5 @@ data/lola/
 # Generated browser assets (DEM + texture, ~175 MB) -- rebuild with
 # pipeline/prepare_terrain.py
 public/data/
+data/kernels/
+*.npy

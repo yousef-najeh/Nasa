@@ -138,6 +138,38 @@ The two grids are concentric in the same projection, so splicing is a centred
 overwrite -- the 20 m DEM covers 80-90S and lands at a 1279 px offset in the
 120 m grid, exactly.
 
+## Phase B: Sun, Earth and exposure
+
+`pipeline/ephem.py` wraps NASA SPICE (DE440) and works in **MOON_ME**, the Mean
+Earth / Polar Axis frame the LOLA products are tied to -- MOON_PA would be wrong
+by a few hundred metres on the ground.
+
+Validated against known physics, because frame errors are silent:
+
+| Check | Computed | Expected |
+|---|---|---|
+| Sun elevation at the pole | -1.560 to +1.576 deg | +/-1.54 (lunar obliquity) |
+| Sun azimuth sweep period | 29.53 days | 29.53 (synodic month) |
+| Sun angular radius | 0.271 deg | ~0.266 |
+| Earth angular radius | 0.932 deg | ~0.9 |
+| Earth elevation at the pole | -7.09 to +6.61 deg | libration, ~+/-7 |
+
+`pipeline/horizon.py` builds a per-site horizon profile (obstruction elevation
+per azimuth, with the `d^2/2R` curvature drop-off) and steps Sun and Earth
+across a mission window. Both are treated as discs, not points: at these
+grazing angles a site spends real time partially lit, and a binary test throws
+away the difference between a good site and a marginal one.
+
+Sun and Earth positions are computed **once** and reused by every site -- the
+Sun is 150 million km away, so the whole polar region sees the same sky. That
+took a site from 250 ms to 10 ms and is what makes screening affordable. Site
+parallax is still kept, since Earth sits within a degree of the horizon here.
+
+`pipeline/screen.py` runs two tiers: 31,417 candidates at 1 km over a 100 km
+radius, then 60 m boxes around the best seeds. The refinement matters -- the
+coarse pass peaked at 74.2% solar exposure and the fine pass found 87.9%,
+because the optima are ridge crests tens of metres wide.
+
 ## Next
 
 Phase B — the horizon/illumination engine. See the plan: compute a 360-azimuth

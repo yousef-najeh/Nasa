@@ -3,6 +3,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
 import { loadDem, loadGlobalDem, Terrain } from "./lola.js";
 import { setupNavigation } from "./navigation.js";
+import { loadSites, addSiteMarkers, drawHorizon } from "./sites.js";
 
 // Must be set before any Viewer/Globe is constructed.
 Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
@@ -188,6 +189,48 @@ async function main() {
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
   });
 
+  // --- candidate sites ------------------------------------------------------
+  const doc = await loadSites();
+  const sky = doc.sky;
+  const panel = el("sitePanel");
+  let current = null;
+
+  const showSite = (s) => {
+    current = s;
+    el("spRank").textContent = `#${s.rank}`;
+    el("spCoord").textContent =
+      `${Math.abs(s.lat).toFixed(4)}°S  ${s.lon.toFixed(3)}°E`;
+    el("spSun").textContent = `${s.sunPct.toFixed(1)}%`;
+    el("spEarth").textContent = `${s.earthPct.toFixed(1)}%`;
+    el("spSunBar").style.width = `${s.sunPct}%`;
+    el("spEarthBar").style.width = `${s.earthPct}%`;
+    el("spNight").textContent = `${s.nightH.toFixed(0)} h`;
+    el("spBlack").textContent = `${s.blackoutH.toFixed(0)} h`;
+    el("spElev").textContent = `${s.elev.toFixed(0)} m`;
+    panel.classList.remove("hidden");
+    drawHorizon(el("spSky"), s, sky);
+    nav.settle();
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 26_000,
+        Cesium.Ellipsoid.MOON),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-55), roll: 0 },
+      duration: 2.0,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT,
+    });
+  };
+
+  const markers = addSiteMarkers(viewer, doc.sites, showSite);
+  el("spClose").addEventListener("click", () => panel.classList.add("hidden"));
+  el("showSites").addEventListener("change", (e) => {
+    for (const m of markers) m.show = e.target.checked;
+    if (!e.target.checked) panel.classList.add("hidden");
+  });
+  window.addEventListener("resize", () => {
+    if (current && !panel.classList.contains("hidden")) {
+      drawHorizon(el("spSky"), current, sky);
+    }
+  });
+
   boot.classList.add("gone");
   setTimeout(() => boot.remove(), 650);
   setTimeout(() => {
@@ -196,7 +239,7 @@ async function main() {
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
   }, 900);
 
-  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav });
+  Object.assign(window, { viewer, Cesium, terrain, polarLayer, nav, doc, showSite });
 }
 
 main().catch((err) => {

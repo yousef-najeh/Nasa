@@ -8,9 +8,10 @@ out-build it, and we should not try. Moon Trek *shows* you the Moon; this
 *ranks* it. The globe is the delivery vehicle — the decision layer is the
 product. If asked "isn't this Moon Trek?", the answer is one sentence.
 
-Status: **Phase A complete.** The whole Moon renders in Cesium -- LROC WAC
-imagery over global LOLA shape, with the 120 m polar DEM and our own relief
-render taking over toward the pole. No Cesium ion dependency. No scoring yet.
+Status: **Phase B landed.** Real Sun and Earth geometry from NASA SPICE drives
+per-site power and comms exposure, validated against known physics. 31,417
+candidates screened and refined; the best site reaches 87.9% solar exposure.
+The globe renders the whole Moon in Cesium with no ion dependency.
 
 ---
 
@@ -176,8 +177,8 @@ room full of space-themed projects.
 | Phase | Output | Status |
 |---|---|---|
 | A | Data fetch, projection, terrain rendering in Cesium | **done** |
-| B | Horizon + illumination engine; validate against PGDA | **next — critical path** |
-| C | Tier-1 regional run, scored map, shortlist | |
+| B | Horizon + illumination engine; SPICE Sun/Earth | **done** (PGDA cross-check outstanding) |
+| C | Tier-1 regional run, scored map, shortlist | **done** — coarse + fine screen |
 | D | Cesium globe with layers + live slider scoring | |
 | E | Tier-2/3 sites, ground view, timeline scrubber | |
 | F | ShadowCam / NAC imagery, lander context, validation write-up | |

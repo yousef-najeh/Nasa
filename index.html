@@ -33,6 +33,8 @@
       </div>
       <label class="chk"><input id="relief" type="checkbox" checked />
         Polar relief overlay</label>
+      <label class="chk"><input id="showSites" type="checkbox" checked />
+        Candidate sites</label>
 
       <div class="sep"></div>
       <details id="help">
@@ -54,13 +56,53 @@
       <div class="note">
         <b>Base imagery</b> — LROC WAC mosaic (NASA/GSFC/ASU) via Moon Trek.<br />
         <b>Topography</b> — LOLA (LRO), 2009–2017, NASA PDS.<br />
-        <b>Lighting</b> — rendered: Sun at 12° elevation, 45° azimuth, with
-        cast shadows and Lommel-Seeliger regolith reflectance.
-        Real Sun geometry from SPICE comes in Phase&nbsp;B.<br />
+        <b>Site analysis</b> — real Sun and Earth geometry from NASA SPICE
+        (DE440), hourly over a year, against each site's computed horizon.<br />
+        <b>Surface shading</b> — rendered at a fixed Sun elevation of 12° for
+        legibility; it is not the Sun position used in the analysis.<br />
         <b>Colour</b> — neutral regolith grey. LOLA carries no albedo; no
         photographic imagery is used.
       </div>
     </div>
+
+
+    <aside id="sitePanel" class="hidden">
+      <header>
+        <span class="rank" id="spRank">—</span>
+        <span class="coord" id="spCoord">—</span>
+        <button id="spClose" type="button" aria-label="Close">×</button>
+      </header>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="k"><i class="sw sun"></i> Solar exposure</span>
+          <b id="spSun">—</b>
+          <div class="bar"><i id="spSunBar" style="background:#c98500"></i></div>
+        </div>
+        <div class="metric">
+          <span class="k"><i class="sw earth"></i> Earth visibility</span>
+          <b id="spEarth">—</b>
+          <div class="bar"><i id="spEarthBar" style="background:#3987e5"></i></div>
+        </div>
+      </div>
+
+      <dl class="facts">
+        <dt>Longest night</dt><dd id="spNight">—</dd>
+        <dt>Longest blackout</dt><dd id="spBlack">—</dd>
+        <dt>Elevation</dt><dd id="spElev">—</dd>
+      </dl>
+
+      <figure>
+        <figcaption>Sky over this site &mdash; one year from 2027-01-01</figcaption>
+        <canvas id="spSky"></canvas>
+        <div class="legend">
+          <span><i class="sw sun"></i>Sun</span>
+          <span><i class="sw earth"></i>Earth</span>
+          <span><i class="sw terrain"></i>Terrain</span>
+          <em>faded = below the skyline</em>
+        </div>
+      </figure>
+    </aside>
 
     <div id="boot">
       <div class="bootInner">
